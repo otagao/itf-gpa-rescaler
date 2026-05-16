@@ -139,6 +139,53 @@
     }
 
     /* Results */
+    .result-options {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+    .switch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--color-text);
+      cursor: pointer;
+      user-select: none;
+    }
+    .switch-text { font-size: 0.9rem; font-weight: 600; }
+    .switch-label input {
+      width: 2.75rem;
+      height: 1.45rem;
+      appearance: none;
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      background: #cbd5e1;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .switch-label input::before {
+      content: "";
+      position: absolute;
+      width: 1.05rem;
+      height: 1.05rem;
+      top: 0.15rem;
+      left: 0.16rem;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: transform 0.15s;
+    }
+    .switch-label input:checked {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .switch-label input:checked::before { transform: translateX(1.26rem); }
+    .switch-label input:focus-visible {
+      outline: 3px solid rgba(26, 86, 219, 0.25);
+      outline-offset: 2px;
+    }
+
     #summary {
       display: flex;
       gap: 1rem;
@@ -226,6 +273,7 @@
       color: var(--color-text-muted);
       border-top: 1px solid var(--color-border);
     }
+    footer p + p { margin-top: 0.35rem; }
 
     @media (max-width: 600px) {
       header h1 { font-size: 1.35rem; }
@@ -249,7 +297,7 @@
     <h2>使い方</h2>
     <ol>
       <li>TWINSにログインし、「成績」→「成績照会」ページを開く</li>
-      <li>ページ下部にある「ダウンロード」ボタンを押下し、設定を何も変更せずCSV形式で成績ファイルをダウンロードする</li>
+      <li>成績照会ページ下部にある「ダウンロード」ボタンを押下し、<strong>設定を何も変更せず</strong>CSV形式で成績ファイルをダウンロードする</li>
       <li>本ページ下のアップロードエリアにファイルをドラッグ＆ドロップするか、「ファイルを選択」ボタンで選択する</li>
       <li>ブラウザ内で計算が行われ、GPA結果が即座に表示される</li>
     </ol>
@@ -287,7 +335,7 @@
       <li>P（合格）・F（不合格）・認（認定）・履修中の科目はGPA計算から除外しています。また、大学が独自にGPA対象外としている科目についても本ツールは考慮していません。</li>
       <li>変換処理はすべてブラウザ内で完結しており、アップロードしたファイルの内容がサーバーに送信されることはありません。ブラウザ自体が致命的に改ざんされていない限り、情報が外部に流出することはありません。</li>
       <li>公開前に開発者自身の成績データで検算を行いましたが、誤りが含まれる可能性を完全には否定できません。本ツールの使用によって生じた損害について、開発者は一切の責任を負いません。</li>
-      <li class="warning-item">⚠️ <strong>重要：</strong>教職課程など特殊な履修形式が存在する場合、致命的な計算誤りや例外が発生する可能性があります。本ツールの結果を特に注意深く確認してください。</li>
+      <li class="warning-item">⚠️ <strong>教職について：</strong>科目区分がDの科目を教職科目として扱います。変換結果パネルのトグルでGPA計算への含有有無を切り替え、必要な扱いになっているか確認してください。<br><strong>なお、開発者は教職課程を履修していないため、致命的な計算誤りが残っている可能性があります。</strong><br>TWINSで表示されるGPAと照らし合わせるなど、必ずダブルチェックを行ってください。</li>
     </ul>
   </section>
 
@@ -307,6 +355,12 @@
   <!-- 結果 -->
   <section id="results" hidden>
     <h2>変換結果</h2>
+    <div class="result-options">
+      <label class="switch-label" for="teacher-toggle">
+        <span class="switch-text">教職をGPA計算に含める</span>
+        <input type="checkbox" id="teacher-toggle" checked>
+      </label>
+    </div>
     <div id="summary">
       <div class="gpa-card">
         <h3>筑波大学 GPA（4.3スケール）</h3>
@@ -343,9 +397,12 @@
   <p>
     ソースコード：<a href="https://github.com/otagao/itf-gpa-rescaler" target="_blank" rel="noopener noreferrer">github.com/otagao/itf-gpa-rescaler</a>
     &nbsp;|&nbsp;
-    開発者：<a href="https://github.com/otagao" target="_blank" rel="noopener noreferrer">@otagao</a>
+    開発者：<a href="https://github.com/otagao" target="_blank" rel="noopener noreferrer">@otagao</a>, Claude Sonnet 4.6, GPT 5.5
     &nbsp;|&nbsp;
     MIT License
+  </p>
+  <p>
+    計算仕様の検証に <a href="https://github.com/Mimori256/Grade-Graph" target="_blank" rel="noopener noreferrer">Mimori256/Grade-Graph</a>（MIT License）を参照しました。
   </p>
 </footer>
 
@@ -371,6 +428,10 @@
   const gpa40El    = document.getElementById('gpa-40');
   const statsEl    = document.getElementById('stats');
   const tbodyEl    = document.getElementById('breakdown-body');
+  const teacherToggle = document.getElementById('teacher-toggle');
+
+  let currentCourses = [];
+  let includeTeacherCurriculum = true;
 
   // ── Event wiring ──────────────────────────────────────────
 
@@ -396,6 +457,12 @@
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
   });
 
+  teacherToggle.addEventListener('change', () => {
+    includeTeacherCurriculum = teacherToggle.checked;
+    if (currentCourses.length === 0) return;
+    renderResults(currentCourses, computeGPA(currentCourses));
+  });
+
   // ── File handling ─────────────────────────────────────────
 
   function handleFile(file) {
@@ -414,8 +481,9 @@
     reader.onload = (e) => {
       try {
         const courses = parseCSV(e.target.result);
-        const result  = computeGPA(courses);
-        renderResults(courses, result);
+        currentCourses = courses;
+        teacherToggle.checked = includeTeacherCurriculum;
+        renderResults(courses, computeGPA(courses));
       } catch (err) {
         showError(err.message);
       }
@@ -464,6 +532,7 @@
     const gradeIdx  = header.findIndex(h => h === '総合評価');
     const nameIdx   = header.findIndex(h => h.trim() === '科目名' || h.trim() === '科目名 ');
     const yearIdx   = header.indexOf('開講年度');
+    const typeIdx   = header.indexOf('科目区分');
 
     if (creditIdx === -1 || gradeIdx === -1) {
       throw new Error(
@@ -481,6 +550,7 @@
 
       const name    = nameIdx !== -1 ? fields[nameIdx]  : '';
       const year    = yearIdx !== -1 ? fields[yearIdx]   : '';
+      const courseType = typeIdx !== -1 ? (fields[typeIdx] || '').normalize('NFKC').toUpperCase() : '';
       const credits = parseFloat(fields[creditIdx]);
       const rawGrade = fields[gradeIdx];
 
@@ -489,13 +559,13 @@
       const grade = normalizeGrade(rawGrade);
 
       if (EXCLUDED_GRADES.has(grade)) {
-        courses.push({ name, year, credits, grade: rawGrade.trim(), excluded: true, excludeReason: grade });
+        courses.push({ name, year, courseType, credits, grade: rawGrade.trim(), excluded: true, excludeReason: grade });
       } else if (grade in GP_43) {
-        courses.push({ name, year, credits, grade, excluded: false });
+        courses.push({ name, year, courseType, credits, grade, excluded: false });
       } else if (grade === '') {
-        courses.push({ name, year, credits, grade: '（空白）', excluded: true, excludeReason: '不明' });
+        courses.push({ name, year, courseType, credits, grade: '（空白）', excluded: true, excludeReason: '不明' });
       } else {
-        courses.push({ name, year, credits, grade: rawGrade.trim(), excluded: true, excludeReason: '不明な評価' });
+        courses.push({ name, year, courseType, credits, grade: rawGrade.trim(), excluded: true, excludeReason: '不明な評価' });
       }
     }
 
@@ -513,6 +583,7 @@
 
     for (const c of courses) {
       if (c.excluded) continue;
+      if (!includeTeacherCurriculum && isTeacherCurriculum(c)) continue;
       sum43        += GP_43[c.grade] * c.credits;
       sum40        += GP_40[c.grade] * c.credits;
       totalCredits += c.credits;
@@ -521,8 +592,10 @@
 
     const excludedCounts = {};
     for (const c of courses) {
-      if (!c.excluded) continue;
-      const reason = c.excludeReason || c.grade;
+      if (!c.excluded && (includeTeacherCurriculum || !isTeacherCurriculum(c))) continue;
+      const reason = !includeTeacherCurriculum && !c.excluded && isTeacherCurriculum(c)
+        ? '教職課程'
+        : (c.excludeReason || c.grade);
       excludedCounts[reason] = (excludedCounts[reason] || 0) + 1;
     }
 
@@ -549,19 +622,22 @@
       `計算対象：${result.totalCredits}単位 / ${result.gradableCount}科目` +
       (excludedParts ? `　除外：${excludedParts}` : '');
 
-    // Sort: gradable by grade order → excluded
+    // Sort: gradable by grade order -> excluded
     const sorted = [...courses].sort((a, b) => {
-      if (!a.excluded && !b.excluded) {
+      const aExcluded = isEffectivelyExcluded(a);
+      const bExcluded = isEffectivelyExcluded(b);
+      if (!aExcluded && !bExcluded) {
         return (GRADE_ORDER[a.grade] ?? 99) - (GRADE_ORDER[b.grade] ?? 99);
       }
-      if (!a.excluded) return -1;
-      if (!b.excluded) return 1;
+      if (!aExcluded) return -1;
+      if (!bExcluded) return 1;
       return 0;
     });
 
     // Build table
     const frag = document.createDocumentFragment();
     for (const c of sorted) {
+      const excluded = isEffectivelyExcluded(c);
       const tr = document.createElement('tr');
 
       const tdName = document.createElement('td');
@@ -581,22 +657,22 @@
       const tdGrade = document.createElement('td');
       const badge = document.createElement('span');
       badge.textContent = c.grade;
-      badge.className = 'grade-badge ' + gradeBadgeClass(c);
+      badge.className = 'grade-badge ' + gradeBadgeClass(c, excluded);
       tdGrade.appendChild(badge);
       tr.appendChild(tdGrade);
 
       const tdGp43 = document.createElement('td');
-      tdGp43.textContent = c.excluded ? '—' : GP_43[c.grade];
+      tdGp43.textContent = excluded ? '—' : GP_43[c.grade];
       tdGp43.style.textAlign = 'right';
       tr.appendChild(tdGp43);
 
       const tdGp40 = document.createElement('td');
-      tdGp40.textContent = c.excluded ? '—' : GP_40[c.grade];
+      tdGp40.textContent = excluded ? '—' : GP_40[c.grade];
       tdGp40.style.textAlign = 'right';
       tr.appendChild(tdGp40);
 
       const tdNote = document.createElement('td');
-      tdNote.textContent = c.excluded ? ('除外（' + c.excludeReason + '）') : '';
+      tdNote.textContent = noteForCourse(c);
       tdNote.style.color = 'var(--color-text-muted)';
       tdNote.style.fontSize = '0.8rem';
       tr.appendChild(tdNote);
@@ -612,8 +688,8 @@
     resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function gradeBadgeClass(course) {
-    if (course.excluded) return 'grade-excluded';
+  function gradeBadgeClass(course, excluded) {
+    if (excluded) return 'grade-excluded';
     switch (course.grade) {
       case 'A+': return 'grade-aplus';
       case 'A':  return 'grade-a';
@@ -625,6 +701,24 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────
+
+  function isTeacherCurriculum(course) {
+    return course.courseType === 'D';
+  }
+
+  function isEffectivelyExcluded(course) {
+    return course.excluded || (!includeTeacherCurriculum && isTeacherCurriculum(course));
+  }
+
+  function noteForCourse(course) {
+    if (!includeTeacherCurriculum && !course.excluded && isTeacherCurriculum(course)) {
+      return '除外（教職課程）';
+    }
+    if (course.excluded) {
+      return '除外（' + course.excludeReason + '）';
+    }
+    return isTeacherCurriculum(course) ? '教職課程' : '';
+  }
 
   function floorTo2(x) {
     return (Math.floor(x * 100) / 100).toFixed(2);
@@ -640,6 +734,7 @@
     errorMsg.textContent = '';
     resultsEl.hidden = true;
     tbodyEl.innerHTML = '';
+    currentCourses = [];
     fileInput.value = '';
   }
 
