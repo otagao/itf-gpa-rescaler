@@ -1,0 +1,5 @@
+SIRS*.csv
+*.csv
+.DS_Store
+Thumbs.db
+.vscode/
